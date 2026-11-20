@@ -24,6 +24,7 @@ En la ventana: eliges el PDF, ajustas los parámetros y presionas *Comprimir PDF
 
 | Parámetro en la ventana | Por defecto | Efecto |
 |---|---|---|
+| 2026-11-19 | 1.1.0 | Nuevo diseño con el sistema de marca Prisma Sol: encabezado violeta con logo, línea sol, Urbanist + Inter, botones y campos con la nueva paleta, ícono de ventana. Sin cambios de funcionamiento. |
 | Calidad JPEG (10–100) | 75 | Menos calidad = archivo más liviano. Bajo 40 se nota la pérdida. |
 | Ancho / alto máximo (px) | 2048 | Las imágenes más grandes se achican a ese tamaño. |
 | Escala de grises | No | Quita el color de las imágenes para comprimir más. |
@@ -34,6 +35,13 @@ En la ventana: eliges el PDF, ajustas los parámetros y presionas *Comprimir PDF
 | `pdf` | PDF a seleccionar al abrir (opcional) |
 | `-h`, `--help` | Muestra la ayuda |
 | `--version` | Muestra la versión |
+
+## Diseño
+
+La ventana usa el sistema de marca **Luciano Aguilera · Prisma Sol**: encabezado violeta con el logo, línea de acento sol, títulos en **Urbanist** y texto en **Inter**.
+
+- Las fuentes son gratuitas en [Google Fonts](https://fonts.google.com/): instala [Urbanist](https://fonts.google.com/specimen/Urbanist) e [Inter](https://fonts.google.com/specimen/Inter) en Windows para verla tal cual. Si no están, usa Century Gothic y Segoe UI.
+- El logo y el ícono están en la carpeta `assets/`. Si falta, la herramienta funciona igual, sin logo.
 
 ## Archivos que genera
 
@@ -51,7 +59,7 @@ En la ventana: eliges el PDF, ajustas los parámetros y presionas *Comprimir PDF
 
 ```bat
 py -m pip install pyinstaller
-pyinstaller --onefile --windowed --name compress_pdf compress_pdf_gui.py
+pyinstaller --onefile --windowed --name compress_pdf --icon assets\isotipo-app.ico --add-data "assets;assets" compress_pdf_gui.py
 ```
 
 El ejecutable queda en `dist\compress_pdf.exe`.
@@ -59,6 +67,8 @@ El ejecutable queda en `dist\compress_pdf.exe`.
 ## Licencia
 
 [MIT](LICENSE): puedes usar, modificar y compartir este código libremente, manteniendo el aviso de autoría.
+
+La licencia cubre el código. El logo y los elementos de la marca Prisma Sol (`assets/`) son de Luciano Aguilera y no están incluidos: ver [assets/MARCA.md](assets/MARCA.md).
 
 ## Historial
 

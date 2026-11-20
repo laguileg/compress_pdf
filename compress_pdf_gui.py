@@ -11,6 +11,7 @@ Genera:  <nombre>_compressAAMMDDHHMMSS.pdf en la misma carpeta del original
          (el original no se modifica). Si ocurre un error, el detalle
          técnico queda en compress_pdf_gui.log.
 
+Recursos: assets/ con el logo y el ícono de la marca Prisma Sol (opcional).
 Requiere: py -m pip install -r requirements.txt   (pikepdf, pillow)
 
 Uso:
@@ -46,7 +47,7 @@ except ImportError:
     print("Falta la librería Pillow. Instálala con:\n  py -m pip install pillow")
     sys.exit(1)
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 NOMBRE_APP = "Compress PDF"
 
 if getattr(sys, "frozen", False):  # empaquetado como .exe con PyInstaller
@@ -57,28 +58,42 @@ RUTA_LOG = CARPETA_APP / "compress_pdf_gui.log"
 
 # delay=True: el .log solo se crea si de verdad ocurre un error.
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # el .log es solo para errores y avisos
     format="%(asctime)s  %(levelname)-8s %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[logging.FileHandler(RUTA_LOG, encoding="utf-8", delay=True)],
 )
 log = logging.getLogger("compress_pdf")
 
-# ─── Paleta de colores ───
-COLOR_AZUL = "#033E84"
-COLOR_ROJO = "#D84141"
-COLOR_GRIS = "#666666"
-COLOR_FONDO_AZUL = "#E9F5FF"
-COLOR_FONDO_BLANCO = "#FFFFFF"
-COLOR_AZUL_OSCURO = "#022B5C"
-COLOR_VERDE = "#23AF4B"
+# ─── Sistema de marca "Luciano Aguilera · Prisma Sol" ───
+COLOR_VIOLETA = "#5B3DF5"          # protagonista: encabezado, botón principal
+COLOR_VIOLETA_TEXTO = "#4F32E6"    # violeta para texto sobre fondos claros; hover
+COLOR_SOL = "#FFD23F"              # acento: línea bajo el encabezado
+COLOR_TINTA = "#17123A"
+COLOR_LILA = "#EEEAFF"             # superficie tintada: registro, barra, resultado
+COLOR_SURFACE = "#FAFAFC"          # fondo de la ventana
+COLOR_SURFACE_RAISED = "#FFFFFF"   # campos y listas
+COLOR_INK = "#17123A"              # texto principal
+COLOR_INK_MUTED = "#57536B"        # texto secundario
+COLOR_LINE = "#E5E3EE"             # bordes
+COLOR_ON_VIOLETA = "#FFFFFF"
+COLOR_EXITO = "#0E7A55"
+COLOR_ALERTA = "#A35400"
+COLOR_ERROR = "#C42B47"
 
-FUENTES_PREFERIDAS = ("Source Sans 3", "Segoe UI")
-FONT_PRIMARY = ("Segoe UI", 11)
-FONT_BOLD = ("Segoe UI", 11, "bold")
-FONT_TITLE = ("Segoe UI", 16, "bold")
+# Urbanist para títulos y Inter para el resto; si no están instaladas, los respaldos del sistema.
+FUENTES_TITULO = ("Urbanist", "Century Gothic", "Segoe UI")
+FUENTES_TEXTO = ("Inter", "Segoe UI", "Arial")
+FONT_PRIMARY = ("Segoe UI", 10)
+FONT_BOLD = ("Segoe UI", 10, "bold")
+FONT_SECTION = ("Segoe UI", 12, "bold")
+FONT_TITLE = ("Segoe UI", 20, "bold")
 FONT_SMALL = ("Segoe UI", 9)
 FONT_BIG = ("Segoe UI", 22, "bold")
+
+CARPETA_RECURSOS = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+RUTA_LOGO = CARPETA_RECURSOS / "assets" / "logo-horizontal-negativo-violeta.png"
+RUTA_ICONO = CARPETA_RECURSOS / "assets" / "isotipo-app.png"
 
 TEXTO_AYUDA = """\
 Cómo usar Compress PDF
@@ -131,15 +146,17 @@ def crear_parser() -> argparse.ArgumentParser:
 
 
 def configurar_fuentes(raiz: tk.Tk) -> None:
-    """Usa la primera fuente preferida instalada en el equipo."""
-    global FONT_PRIMARY, FONT_BOLD, FONT_TITLE, FONT_SMALL, FONT_BIG
+    """Usa la primera fuente de marca instalada en el equipo, o su respaldo."""
+    global FONT_PRIMARY, FONT_BOLD, FONT_SECTION, FONT_TITLE, FONT_SMALL, FONT_BIG
     instaladas = set(tkfont.families(raiz))
-    familia = next((f for f in FUENTES_PREFERIDAS if f in instaladas), "Segoe UI")
-    FONT_PRIMARY = (familia, 11)
-    FONT_BOLD = (familia, 11, "bold")
-    FONT_TITLE = (familia, 16, "bold")
-    FONT_SMALL = (familia, 9)
-    FONT_BIG = (familia, 22, "bold")
+    titulo = next((f for f in FUENTES_TITULO if f in instaladas), "Segoe UI")
+    texto = next((f for f in FUENTES_TEXTO if f in instaladas), "Segoe UI")
+    FONT_PRIMARY = (texto, 10)
+    FONT_BOLD = (texto, 10, "bold")
+    FONT_SECTION = (titulo, 12, "bold")
+    FONT_TITLE = (titulo, 20, "bold")
+    FONT_SMALL = (texto, 9)
+    FONT_BIG = (titulo, 22, "bold")
 
 
 # ─── Motor Compress PDF ───
@@ -279,9 +296,10 @@ class CompressPDFApp(tk.Tk):
     def __init__(self, pdf_inicial: Path | None = None):
         super().__init__()
         configurar_fuentes(self)
+        self._poner_icono()
         self.title(f"{NOMBRE_APP} {VERSION}")
-        self.geometry("620x720")
-        self.configure(bg=COLOR_FONDO_BLANCO)
+        self.geometry("620x790")
+        self.configure(bg=COLOR_SURFACE)
         self.resizable(False, False)
 
         self.compressor = PDFCompressor()
@@ -318,174 +336,182 @@ class CompressPDFApp(tk.Tk):
                             f"{NOMBRE_APP} {VERSION}\n\nReduce el tamaño de PDF con imágenes.\n"
                             "Licencia MIT.")
 
-    # ── Franja degradada ──
-    def _draw_gradient_bar(self, parent):
-        canvas = tk.Canvas(parent, height=4, bg=COLOR_FONDO_BLANCO, highlightthickness=0)
-        canvas.pack(fill="x", padx=30, pady=(18, 8))
-        canvas.update_idletasks()
-        w = canvas.winfo_width() or 560
-        for i in range(w):
-            r_ratio = i / w
-            r = int(3 + (216 - 3) * r_ratio)
-            g = int(62 + (65 - 62) * r_ratio)
-            b = int(132 + (65 - 132) * r_ratio)
-            color = f"#{r:02x}{g:02x}{b:02x}"
-            canvas.create_line(i, 0, i, 4, fill=color)
+    # ── Encabezado de marca ──
+    def _build_header(self, titulo: str):
+        header = tk.Frame(self, bg=COLOR_VIOLETA, padx=30, pady=18)
+        header.pack(fill="x")
+        try:
+            self._logo_img = tk.PhotoImage(file=str(RUTA_LOGO))
+            tk.Label(header, image=self._logo_img, bg=COLOR_VIOLETA).pack(anchor="w")
+        except tk.TclError:
+            log.warning("No se encontró el logo en %s; la ventana sigue sin él.", RUTA_LOGO)
+        tk.Label(header, text=titulo, font=FONT_TITLE, fg=COLOR_ON_VIOLETA,
+                 bg=COLOR_VIOLETA, anchor="w").pack(fill="x", pady=(12, 0))
+        # Línea sol: el acento de la marca, una sola vez en la ventana.
+        tk.Frame(self, bg=COLOR_SOL, height=4).pack(fill="x", pady=(0, 14))
+
+    def _poner_icono(self):
+        try:
+            self._icono_img = tk.PhotoImage(file=str(RUTA_ICONO))
+            self.iconphoto(True, self._icono_img)
+        except tk.TclError:
+            log.warning("No se encontró el ícono en %s.", RUTA_ICONO)
 
     # ── Build UI ──
     def _build_ui(self):
-        self._draw_gradient_bar(self)
+        self._build_header("Comprimir PDF")
 
-        title = tk.Label(self, text="Comprimir PDF", font=FONT_TITLE, fg=COLOR_AZUL, bg=COLOR_FONDO_BLANCO)
-        title.pack(pady=(0, 10))
-
-        main = tk.Frame(self, bg=COLOR_FONDO_BLANCO, padx=30)
+        main = tk.Frame(self, bg=COLOR_SURFACE, padx=30)
         main.pack(fill="both", expand=True)
 
         # ── Selección de archivo ──
         self._section(main, "Archivo PDF")
-        file_frame = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        file_frame = tk.Frame(main, bg=COLOR_SURFACE)
         file_frame.pack(fill="x", pady=(0, 4))
 
         self.file_entry = tk.Entry(file_frame, textvariable=self.selected_file,
                                    font=FONT_PRIMARY, state="readonly",
-                                   readonlybackground=COLOR_FONDO_AZUL, fg=COLOR_GRIS)
+                                   readonlybackground=COLOR_SURFACE_RAISED, fg=COLOR_INK,
+                                   relief="flat", highlightthickness=1,
+                                   highlightbackground=COLOR_LINE)
         self.file_entry.pack(side="left", fill="x", expand=True, ipady=4)
 
         btn_browse = tk.Button(file_frame, text="Buscar...", font=FONT_BOLD,
-                               bg=COLOR_AZUL, fg="white", activebackground=COLOR_AZUL_OSCURO,
-                               activeforeground="white", bd=0, padx=16, pady=4,
+                               bg=COLOR_VIOLETA, fg=COLOR_ON_VIOLETA, activebackground=COLOR_VIOLETA_TEXTO,
+                               activeforeground=COLOR_ON_VIOLETA, bd=0, padx=16, pady=4,
                                cursor="hand2", command=self._browse_file)
         btn_browse.pack(side="right", padx=(8, 0))
 
-        self.file_info = tk.Label(main, text="", font=FONT_SMALL, fg=COLOR_GRIS,
-                                  bg=COLOR_FONDO_BLANCO, anchor="w")
+        self.file_info = tk.Label(main, text="", font=FONT_SMALL, fg=COLOR_INK_MUTED,
+                                  bg=COLOR_SURFACE, anchor="w")
         self.file_info.pack(fill="x", pady=(0, 8))
 
         # ── Parámetros de compresión ──
         self._section(main, "Parámetros de compresión")
 
-        params = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        params = tk.Frame(main, bg=COLOR_SURFACE)
         params.pack(fill="x", pady=(0, 4))
 
         # Calidad JPEG con slider
         tk.Label(params, text="Calidad JPEG (1-100):", font=FONT_PRIMARY,
-                 fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO).grid(row=0, column=0, sticky="w", pady=2)
+                 fg=COLOR_INK_MUTED, bg=COLOR_SURFACE).grid(row=0, column=0, sticky="w", pady=2)
 
-        slider_frame = tk.Frame(params, bg=COLOR_FONDO_BLANCO)
+        slider_frame = tk.Frame(params, bg=COLOR_SURFACE)
         slider_frame.grid(row=0, column=1, sticky="w", padx=(8, 0), pady=2)
 
         self.quality_slider = tk.Scale(slider_frame, from_=10, to=100,
                                        orient="horizontal", variable=self.quality_var,
-                                       length=200, bg=COLOR_FONDO_BLANCO, fg=COLOR_AZUL,
-                                       troughcolor=COLOR_FONDO_AZUL, highlightthickness=0,
-                                       sliderrelief="flat", activebackground=COLOR_ROJO,
+                                       length=200, bg=COLOR_SURFACE, fg=COLOR_INK,
+                                       troughcolor=COLOR_LILA, highlightthickness=0,
+                                       sliderrelief="flat", activebackground=COLOR_VIOLETA,
                                        command=self._update_quality_hint)
         self.quality_slider.pack(side="left")
 
         self.quality_hint = tk.Label(slider_frame, text="Balanceado", font=FONT_SMALL,
-                                     fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO, width=14)
+                                     fg=COLOR_VIOLETA_TEXTO, bg=COLOR_SURFACE, width=14)
         self.quality_hint.pack(side="left", padx=(4, 0))
 
         # Max ancho
         tk.Label(params, text="Ancho máx. imágenes (px):", font=FONT_PRIMARY,
-                 fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO).grid(row=1, column=0, sticky="w", pady=2)
+                 fg=COLOR_INK_MUTED, bg=COLOR_SURFACE).grid(row=1, column=0, sticky="w", pady=2)
         tk.Spinbox(params, from_=512, to=4096, increment=256,
                    textvariable=self.max_w_var, width=8, font=FONT_PRIMARY,
-                   bg=COLOR_FONDO_AZUL, buttonbackground=COLOR_AZUL
+                   bg=COLOR_SURFACE_RAISED, buttonbackground=COLOR_LILA
                    ).grid(row=1, column=1, sticky="w", padx=(8, 0), pady=2)
 
         # Max alto
         tk.Label(params, text="Alto máx. imágenes (px):", font=FONT_PRIMARY,
-                 fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO).grid(row=2, column=0, sticky="w", pady=2)
+                 fg=COLOR_INK_MUTED, bg=COLOR_SURFACE).grid(row=2, column=0, sticky="w", pady=2)
         tk.Spinbox(params, from_=512, to=4096, increment=256,
                    textvariable=self.max_h_var, width=8, font=FONT_PRIMARY,
-                   bg=COLOR_FONDO_AZUL, buttonbackground=COLOR_AZUL
+                   bg=COLOR_SURFACE_RAISED, buttonbackground=COLOR_LILA
                    ).grid(row=2, column=1, sticky="w", padx=(8, 0), pady=2)
 
         # Checkboxes
-        checks = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        checks = tk.Frame(main, bg=COLOR_SURFACE)
         checks.pack(fill="x", pady=(4, 4))
 
         tk.Checkbutton(checks, text="Escala de grises (pierde color, más compresión)",
                        variable=self.grayscale_var, font=FONT_PRIMARY,
-                       bg=COLOR_FONDO_BLANCO, fg=COLOR_GRIS, selectcolor=COLOR_FONDO_AZUL,
-                       activebackground=COLOR_FONDO_BLANCO).pack(anchor="w")
+                       bg=COLOR_SURFACE, fg=COLOR_INK, selectcolor=COLOR_SURFACE_RAISED,
+                       activebackground=COLOR_SURFACE).pack(anchor="w")
 
         tk.Checkbutton(checks, text="Optimización estructural (recomendado)",
                        variable=self.struct_opt_var, font=FONT_PRIMARY,
-                       bg=COLOR_FONDO_BLANCO, fg=COLOR_GRIS, selectcolor=COLOR_FONDO_AZUL,
-                       activebackground=COLOR_FONDO_BLANCO).pack(anchor="w")
+                       bg=COLOR_SURFACE, fg=COLOR_INK, selectcolor=COLOR_SURFACE_RAISED,
+                       activebackground=COLOR_SURFACE).pack(anchor="w")
 
         # ── Nombre salida ──
         self._section(main, "Archivo de salida")
         out_hint = tk.Label(main, text="Se guarda en la misma carpeta del PDF original.",
-                            font=FONT_SMALL, fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO)
+                            font=FONT_SMALL, fg=COLOR_INK_MUTED, bg=COLOR_SURFACE)
         out_hint.pack(anchor="w")
 
         self.entry_output = tk.Entry(main, textvariable=self.output_name_var,
-                                     font=FONT_PRIMARY, bg=COLOR_FONDO_AZUL, width=45)
+                                     font=FONT_PRIMARY, bg=COLOR_SURFACE_RAISED, fg=COLOR_INK, relief="flat",
+                                     highlightthickness=1, highlightbackground=COLOR_LINE,
+                                     highlightcolor=COLOR_VIOLETA, width=45)
         self.entry_output.pack(fill="x", pady=(2, 8), ipady=3)
 
         # ── Barra progreso ──
         self.progress_label = tk.Label(main, text="", font=FONT_SMALL,
-                                       fg=COLOR_GRIS, bg=COLOR_FONDO_BLANCO)
+                                       fg=COLOR_INK_MUTED, bg=COLOR_SURFACE)
         self.progress_label.pack(fill="x", pady=(4, 2))
 
         style = ttk.Style()
         style.theme_use("default")
         style.configure("App.Horizontal.TProgressbar",
-                        troughcolor=COLOR_FONDO_AZUL, background=COLOR_AZUL, thickness=18)
+                        troughcolor=COLOR_LILA, background=COLOR_VIOLETA, thickness=18)
         self.progress = ttk.Progressbar(main, style="App.Horizontal.TProgressbar",
                                         mode="determinate", maximum=100)
         self.progress.pack(fill="x", pady=(0, 6))
 
         # ── Resultado visual ──
-        self.result_frame = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        self.result_frame = tk.Frame(main, bg=COLOR_SURFACE)
         self.result_frame.pack(fill="x", pady=(0, 4))
 
         # ── Botones ──
-        action_row = tk.Frame(main, bg=COLOR_FONDO_BLANCO)
+        action_row = tk.Frame(main, bg=COLOR_SURFACE)
         action_row.pack(fill="x", pady=(2, 6))
 
         self.btn_compress = tk.Button(action_row, text="  Comprimir PDF  ", font=FONT_BOLD,
-                                      bg=COLOR_ROJO, fg="white", activebackground="#b83030",
-                                      activeforeground="white", bd=0, padx=24, pady=8,
+                                      bg=COLOR_VIOLETA, fg=COLOR_ON_VIOLETA, activebackground=COLOR_VIOLETA_TEXTO,
+                                      activeforeground=COLOR_ON_VIOLETA, bd=0, padx=24, pady=8,
                                       cursor="hand2", command=self._run_compress)
         self.btn_compress.pack(side="left")
 
         self.btn_open_folder = tk.Button(action_row, text="Abrir carpeta", font=FONT_PRIMARY,
-                                         bg=COLOR_AZUL, fg="white",
-                                         activebackground=COLOR_AZUL_OSCURO,
-                                         activeforeground="white", bd=0, padx=16, pady=8,
+                                         bg=COLOR_LILA, fg=COLOR_VIOLETA_TEXTO,
+                                         activebackground=COLOR_LINE,
+                                         activeforeground=COLOR_VIOLETA_TEXTO, bd=0, padx=16, pady=8,
                                          cursor="hand2", state="disabled",
                                          command=self._open_output_folder)
         self.btn_open_folder.pack(side="right")
 
         # ── Log ──
-        self.log_text = tk.Text(main, height=4, font=FONT_SMALL, bg=COLOR_FONDO_AZUL,
-                                fg=COLOR_GRIS, bd=1, relief="solid", state="disabled",
+        self.log_text = tk.Text(main, height=4, font=FONT_SMALL, bg=COLOR_LILA,
+                                fg=COLOR_INK, bd=0, relief="flat", state="disabled",
                                 wrap="word")
         self.log_text.pack(fill="x", pady=(4, 12))
 
     # ── Helpers ──
     def _section(self, parent, text):
-        lbl = tk.Label(parent, text=text, font=FONT_BOLD, fg=COLOR_AZUL,
-                       bg=COLOR_FONDO_BLANCO, anchor="w")
+        lbl = tk.Label(parent, text=text, font=FONT_SECTION, fg=COLOR_INK,
+                       bg=COLOR_SURFACE, anchor="w")
         lbl.pack(fill="x", pady=(6, 2))
 
     def _update_quality_hint(self, val=None):
         q = self.quality_var.get()
         if q <= 30:
-            hint, color = "Agresivo", COLOR_ROJO
+            hint, color = "Agresivo", COLOR_ERROR
         elif q <= 55:
-            hint, color = "Alta compresión", "#E25B00"
+            hint, color = "Alta compresión", COLOR_ALERTA
         elif q <= 75:
-            hint, color = "Balanceado", COLOR_AZUL
+            hint, color = "Balanceado", COLOR_VIOLETA_TEXTO
         elif q <= 90:
-            hint, color = "Alta calidad", COLOR_VERDE
+            hint, color = "Alta calidad", COLOR_EXITO
         else:
-            hint, color = "Mínima compresión", COLOR_GRIS
+            hint, color = "Mínima compresión", COLOR_INK_MUTED
         self.quality_hint.config(text=hint, fg=color)
 
     def _browse_file(self):
@@ -539,29 +565,29 @@ class CompressPDFApp(tk.Tk):
 
         if after_bytes < before_bytes:
             ratio = (1 - after_bytes / before_bytes) * 100
-            color = COLOR_VERDE
+            color = COLOR_EXITO
             icon = "📉"
         else:
             ratio = 0
-            color = COLOR_ROJO
+            color = COLOR_ERROR
             icon = "⚠️"
 
-        row = tk.Frame(self.result_frame, bg=COLOR_FONDO_AZUL, padx=12, pady=8)
+        row = tk.Frame(self.result_frame, bg=COLOR_LILA, padx=12, pady=8)
         row.pack(fill="x", pady=(4, 0))
 
         tk.Label(row, text=f"{before_mb:.1f} MB", font=FONT_BOLD,
-                 fg=COLOR_GRIS, bg=COLOR_FONDO_AZUL).pack(side="left")
+                 fg=COLOR_INK_MUTED, bg=COLOR_LILA).pack(side="left")
         tk.Label(row, text="  →  ", font=FONT_PRIMARY,
-                 fg=COLOR_GRIS, bg=COLOR_FONDO_AZUL).pack(side="left")
+                 fg=COLOR_INK_MUTED, bg=COLOR_LILA).pack(side="left")
         tk.Label(row, text=f"{after_mb:.1f} MB", font=FONT_BOLD,
-                 fg=color, bg=COLOR_FONDO_AZUL).pack(side="left")
+                 fg=color, bg=COLOR_LILA).pack(side="left")
 
         if ratio > 0:
             tk.Label(row, text=f"    {icon} -{ratio:.1f}%", font=FONT_BOLD,
-                     fg=color, bg=COLOR_FONDO_AZUL).pack(side="left", padx=(8, 0))
+                     fg=color, bg=COLOR_LILA).pack(side="left", padx=(8, 0))
         else:
             tk.Label(row, text=f"    {icon} Sin reducción", font=FONT_BOLD,
-                     fg=color, bg=COLOR_FONDO_AZUL).pack(side="left", padx=(8, 0))
+                     fg=color, bg=COLOR_LILA).pack(side="left", padx=(8, 0))
 
     def _open_output_folder(self):
         if self.output_path:
